@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile Frame Generator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="container">
+    <h1>Profile Frame Generator</h1>
+    <p>Upload your photo, adjust it, and download your framed image!</p>
+
+    <!-- Canvas Preview -->
+    <div class="canvas-wrapper">
+      <canvas id="photoCanvas" width="600" height="600"></canvas>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <input type="file" id="uploadInput" accept="image/*">
+      
+      <div class="slider-group">
+        <label for="zoomSlider">Zoom:</label>
+        <input type="range" id="zoomSlider" min="0.5" max="3" step="0.01" value="1" disabled>
+      </div>
+
+      <button id="downloadBtn" disabled>Download Image</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

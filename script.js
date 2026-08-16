@@ -1,23 +1,20 @@
 const canvas = document.getElementById('photoCanvas');
 const ctx = canvas.getContext('2d');
 const uploadInput = document.getElementById('uploadInput');
-const zoomSlider = document.getElementById('zoomSlider');
 const downloadBtn = document.getElementById('downloadBtn');
 
 // State variables
 let userImage = null;
 let frameImage = new Image();
-frameImage.src = 'frame.png'; // Path to your transparent frame PNG (1:1 aspect ratio)
+frameImage.src = 'frame.png'; // Path to transparent frame PNG
 
-// Transformation state
 let imageX = 0;
 let imageY = 0;
 let scale = 1;
-
-// Dragging state
 let isDragging = false;
-let startX = 0;
-let startY = 0;
+let startX, startY;
+let initialPinchDistance = null;
+let initialScale = 1;
 
 // Render canvas loop
 function draw() {
@@ -26,14 +23,9 @@ function draw() {
   // 1. Draw User Image (bottom layer)
   if (userImage) {
     ctx.save();
-    
-    // Draw image centered around its current (imageX, imageY) coordinate
-    const drawWidth = userImage.width * scale;
-    const drawHeight = userImage.height * scale;
-    
-    // imageX and imageY are relative to the top-left corner of the canvas
-    ctx.drawImage(userImage, imageX, imageY, drawWidth, drawHeight);
-    
+    const width = userImage.width * scale;
+    const height = userImage.height * scale;
+    ctx.drawImage(userImage, imageX, imageY, width, height);
     ctx.restore();
   }
 
@@ -43,10 +35,8 @@ function draw() {
   }
 }
 
-// Ensure frame redraws once loaded
+// Redraw frame once loaded
 frameImage.onload = () => draw();
-
-// --- Event Handlers ---
 
 // File Upload Handler
 uploadInput.addEventListener('change', (e) => {
@@ -57,19 +47,12 @@ uploadInput.addEventListener('change', (e) => {
   reader.onload = (event) => {
     userImage = new Image();
     userImage.onload = () => {
-      // Center image initially within the 1:1 canvas
-      const minCanvasDim = Math.min(canvas.width, canvas.height);
-      const minImgDim = Math.min(userImage.width, userImage.height);
-      
-      scale = minCanvasDim / minImgDim; // Scale to fit shortest dimension
-
+      // Center and scale image to fill canvas initial bounds
+      scale = canvas.width / Math.min(userImage.width, userImage.height);
       imageX = (canvas.width - userImage.width * scale) / 2;
       imageY = (canvas.height - userImage.height * scale) / 2;
 
-      zoomSlider.value = scale;
-      zoomSlider.disabled = false;
       downloadBtn.disabled = false;
-
       draw();
     };
     userImage.src = event.target.result;
@@ -77,113 +60,89 @@ uploadInput.addEventListener('change', (e) => {
   reader.readAsDataURL(file);
 });
 
-// Zoom Slider
-zoomSlider.addEventListener('input', (e) => {
-  if (!userImage) return;
-  
-  // Need to adjust coordinates slightly during zoom to keep image centered
-  const oldScale = scale;
-  scale = parseFloat(e.target.value);
-  
-  // Calculate relative center before zoom and maintain it after zoom
-  const pivotX = canvas.width / 2;
-  const pivotY = canvas.height / 2;
-  
-  imageX = pivotX - (pivotX - imageX) * (scale / oldScale);
-  imageY = pivotY - (pivotY - imageY) * (scale / oldScale);
-
-  draw();
-});
-
-// --- Mouse Dragging Event Listeners ---
-
-function getMousePos(canvas, evt) {
-    var rect = canvas.getBoundingClientRect();
-    return {
-        x: evt.clientX - rect.left,
-        y: evt.clientY - rect.top
-    };
+// Helper: Calculate distance between two touch points
+function getPinchDistance(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
 }
 
+// Mouse Drag Operations (Desktop)
 canvas.addEventListener('mousedown', (e) => {
   if (!userImage) return;
-  
-  const mousePos = getMousePos(canvas, e);
   isDragging = true;
-  
-  // Calculate offset relative to the image's top-left corner
-  startX = mousePos.x - imageX;
-  startY = mousePos.y - imageY;
-  
-  canvas.style.cursor = 'grabbing'; // Optional style improvement
+  startX = e.clientX - imageX;
+  startY = e.clientY - imageY;
 });
 
 window.addEventListener('mousemove', (e) => {
-  if (!isDragging || !userImage) return;
-  
-  const mousePos = getMousePos(canvas, e);
-  
-  // Update image position based on new mouse position and original offset
-  imageX = mousePos.x - startX;
-  imageY = mousePos.y - startY;
-  
+  if (!isDragging) return;
+  imageX = e.clientX - startX;
+  imageY = e.clientY - startY;
   draw();
 });
 
-window.addEventListener('mouseup', () => {
-  isDragging = false;
-  if (canvas.style.cursor === 'grabbing') {
-      canvas.style.cursor = 'default';
-  }
-});
+window.addEventListener('mouseup', () => isDragging = false);
 
-
-// --- Touch (Mobile) Dragging Event Listeners ---
-
-function getTouchPos(canvas, touch) {
-    var rect = canvas.getBoundingClientRect();
-    return {
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top
-    };
-}
-
+// Touch Interactions (Mobile Drag & Pinch-to-Zoom)
 canvas.addEventListener('touchstart', (e) => {
-  if (!userImage || e.touches.length > 1) return; // Ignore multi-touch (pinching)
-  
-  const touchPos = getTouchPos(canvas, e.touches[0]);
-  isDragging = true;
-  
-  // Calculate offset relative to the image's top-left corner
-  startX = touchPos.x - imageX;
-  startY = touchPos.y - imageY;
-  
-  e.preventDefault(); // Prevent page scrolling during drag
+  if (!userImage) return;
+
+  if (e.touches.length === 1) {
+    // Single finger: start pan
+    isDragging = true;
+    startX = e.touches[0].clientX - imageX;
+    startY = e.touches[0].clientY - imageY;
+  } else if (e.touches.length === 2) {
+    // Two fingers: start pinch zoom
+    isDragging = false;
+    initialPinchDistance = getPinchDistance(e.touches);
+    initialScale = scale;
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+  if (!userImage) return;
+  e.preventDefault(); // Prevent default page scrolling while adjusting photo
+
+  if (e.touches.length === 1 && isDragging) {
+    // Pan image
+    imageX = e.touches[0].clientX - startX;
+    imageY = e.touches[0].clientY - startY;
+    draw();
+  } else if (e.touches.length === 2 && initialPinchDistance) {
+    // Pinch-to-zoom around center position
+    const currentDistance = getPinchDistance(e.touches);
+    const zoomFactor = currentDistance / initialPinchDistance;
+    const newScale = initialScale * zoomFactor;
+
+    // Center point adjustment during pinch zoom
+    const zoomRatio = newScale / scale;
+    const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+    const rect = canvas.getBoundingClientRect();
+    const canvasCenterX = (centerX - rect.left) * (canvas.width / rect.width);
+    const canvasCenterY = (centerY - rect.top) * (canvas.height / rect.height);
+
+    imageX = canvasCenterX - (canvasCenterX - imageX) * zoomRatio;
+    imageY = canvasCenterY - (canvasCenterY - imageY) * zoomRatio;
+    scale = newScale;
+
+    draw();
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+  if (e.touches.length < 2) initialPinchDistance = null;
+  if (e.touches.length === 0) isDragging = false;
 });
 
-window.addEventListener('touchmove', (e) => {
-  if (!isDragging || !userImage || e.touches.length > 1) return;
-  
-  const touchPos = getTouchPos(canvas, e.touches[0]);
-  
-  // Update image position based on new touch position and original offset
-  imageX = touchPos.x - startX;
-  imageY = touchPos.y - startY;
-  
-  draw();
-  e.preventDefault(); // Prevent page scrolling during drag
-});
-
-window.addEventListener('touchend', () => {
-  isDragging = false;
-});
-
-
-// --- Download Process ---
+// High-Res Export Download
 downloadBtn.addEventListener('click', () => {
-  const dataURL = canvas.toDataURL('image/png');
+  const dataURL = canvas.toDataURL('image/png', 1.0);
   const link = document.createElement('a');
-  link.download = 'framed-profile.png';
+  link.download = 'framed-profile-hd.png';
   link.href = dataURL;
   link.click();
 });

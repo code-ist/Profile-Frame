@@ -25,9 +25,20 @@ body {
 }
 
 h1 {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   font-size: 1.5rem;
   color: #333;
+}
+
+.download-counter {
+  display: inline-block;
+  background-color: #eef2f5;
+  color: #007bff;
+  font-size: 0.85rem;
+  font-weight: bold;
+  padding: 4px 12px;
+  border-radius: 12px;
+  margin-bottom: 15px;
 }
 
 p {
@@ -45,7 +56,7 @@ p {
   border-radius: 8px;
   overflow: hidden;
   background: #eef2f5;
-  touch-action: none; /* Prevents default mobile touch gestures on canvas */
+  touch-action: none;
 }
 
 canvas {

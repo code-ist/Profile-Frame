@@ -45,32 +45,24 @@ p {
   border-radius: 8px;
   overflow: hidden;
   background: #eef2f5;
+  touch-action: none; /* Prevents default mobile touch gestures on canvas */
 }
 
 canvas {
   width: 100%;
   height: auto;
   display: block;
+  cursor: grab;
+}
+
+canvas:active {
+  cursor: grabbing;
 }
 
 .controls {
   display: flex;
   flex-direction: column;
   gap: 15px;
-}
-
-.slider-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.slider-group label {
-  font-size: 0.9rem;
-}
-
-input[type="range"] {
-  flex: 1;
 }
 
 button {

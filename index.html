@@ -10,22 +10,16 @@
 
   <div class="container">
     <h1>Profile Frame Generator</h1>
-    <p>Upload your photo, adjust it, and download your framed image!</p>
+    <p>Upload your photo, drag or pinch to adjust, and download your framed image!</p>
 
-    <!-- Canvas Preview -->
+    <!-- Canvas Preview (Full HD 1080x1080 internal resolution) -->
     <div class="canvas-wrapper">
-      <canvas id="photoCanvas" width="600" height="600"></canvas>
+      <canvas id="photoCanvas" width="1080" height="1080"></canvas>
     </div>
 
     <!-- Controls -->
     <div class="controls">
       <input type="file" id="uploadInput" accept="image/*">
-      
-      <div class="slider-group">
-        <label for="zoomSlider">Zoom:</label>
-        <input type="range" id="zoomSlider" min="0.5" max="3" step="0.01" value="1" disabled>
-      </div>
-
       <button id="downloadBtn" disabled>Download Image</button>
     </div>
   </div>
